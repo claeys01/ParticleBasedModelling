@@ -32,13 +32,12 @@ for delta in delta_arr:
         csv_writer = csv.writer(csfile, delimiter=',', quotechar='"')
         csv_writer.writerow(fields)
         for i in range(ncycles21):
-            if i % ncycles21 == 0:
+            if E_ave[i] != 0 and P_ave[i] != 0:
                 csv_writer.writerow([delta, E_ave[i], P_ave[i], acceptance_ratio])
     end = time.time()
 
     print(f"Delta: {round(delta, 5)}, acceptance ratio = {round(acceptance_ratio, 5)}, duration: {round(end - start, 5)} seconds \n")
-
-print("Excersise 2.1 done")
+print("excersice 2.1 done")
 
 
 

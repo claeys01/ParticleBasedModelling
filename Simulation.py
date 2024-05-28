@@ -111,15 +111,14 @@ class MonteCarloSimulation:
         accepted_moves = 0
 
         self.start_conf(50)
-
         for i in range(self.ncycle):
+            start = time.time()
             if self.translate_particle():
                 accepted_moves += 1
-            if i % self.ncycle == 0:
-                start = time.time()
-                E_ave[i], P_ave[i] = self.total_energy_pressure
-                end = time.time()
-                print(f"Iteration {i + 1}/{self.ncycle}, time: {end-start} seconds", end='\r', flush=True)
+                if i % 500 == 0:
+                    E_ave[i], P_ave[i] = self.total_energy_pressure
+                    end = time.time()
+                    print(f"Iteration {i + 1}/{self.ncycle}, time: {end-start} seconds", end='\r', flush=True)
         acceptance_ratio = accepted_moves / self.ncycle
 
         return E_ave, P_ave, acceptance_ratio
