@@ -31,6 +31,8 @@ class MonteCarloSimulation:
         self.tail_correction = 8 * np.pi * self.rho_num * self.epsilon * (
                     self.sigma12 / (3 * self.rcut9) - self.sigma6 / (3 * self.rcut3))
 
+        # self.tail_correction = 0
+
         self.delta = delta * 10 ** -10  # Maximum displacement of the particles [m]
         self.beta = 1 / (self.kb * self.temp)  # Beta value
         self.density = (self.npart / const.Avogadro * self.molar_m) / (self.volume)  # Density of the system [kg/m^3]
@@ -113,7 +115,7 @@ class MonteCarloSimulation:
         for i in range(self.ncycle):
             if self.translate_particle():
                 accepted_moves += 1
-            if i % 500 == 0:
+            if i % self.ncycle == 0:
                 start = time.time()
                 E_ave[i], P_ave[i] = self.total_energy_pressure
                 end = time.time()
