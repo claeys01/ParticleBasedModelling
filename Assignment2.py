@@ -11,7 +11,7 @@ eta_kb = 148
 T_21 = 150
 side_length_21 = 30
 rcut_21 = 14
-ncycles21 = 500000
+ncycles21 = 5000
 npart = 362
 
 delta_arr = np.linspace(0.005, 1, 100)
