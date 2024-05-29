@@ -42,12 +42,12 @@ class MonteCarloSimulation:
         energy = 0.0
         virial = 0.0
         for (i, pos_i) in enumerate(self._particles):
-            delta = self.pbc(self._particles - pos_i)
+            delta = self.pbc(self._particles[i+1:, :] - pos_i) # alleen de onderste driehoek van de matrix
             d_sq = np.sum((delta ** 2), axis=1)
-            d_sq[i] = np.inf
-            d_sq[i:] = np.inf
-            d_sq[d_sq > self.rcut ** 2] = np.inf
-
+            # d_sq[i] = np.inf
+            # d_sq[i:] = np.inf
+            # d_sq[d_sq > self.rcut ** 2] = np.inf
+            d_sq = d_sq[d_sq < self.rcut**2]
             d6 = d_sq ** 3
             d12 = d6 * d6
             energy += 4 * self.epsilon * np.sum(self.sigma12 / d12 - self.sigma6 / d6) + self.tail_correction
@@ -60,8 +60,9 @@ class MonteCarloSimulation:
         delta = self.pbc(self._particles - self._particles[particle_index])
         d_sq = np.sum((delta ** 2), axis=1)
         d_sq[particle_index] = np.inf
-        d_sq[particle_index:] = np.inf
-        d_sq[d_sq > self.rcut ** 2] = np.inf
+        # d_sq[particle_index:] = np.inf
+        # d_sq[d_sq > self.rcut ** 2] = np.inf
+        d_sq = d_sq[d_sq < self.rcut ** 2]
         d6 = d_sq ** 3
         d12 = d6 * d6
         return 4 * self.epsilon * np.sum(self.sigma12 / d12 - self.sigma6 / d6) + self.tail_correction
