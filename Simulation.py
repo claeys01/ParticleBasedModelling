@@ -43,39 +43,31 @@ class MonteCarloSimulation:
         virial = 0.0
         for (i, pos_i) in enumerate(self._particles):
             delta = self.pbc(self._particles - pos_i)
-            d_sq = delta[:, 0] ** 2 + delta[:, 1] ** 2 + delta[:, 2] ** 2
+            d_sq = np.sum((delta ** 2), axis=1)
             d_sq[i] = np.inf
             d_sq[i:] = np.inf
             d_sq[d_sq > self.rcut ** 2] = np.inf
 
             d6 = d_sq ** 3
             d12 = d6 * d6
-            energy += np.sum(4 * self.epsilon * (self.sigma12 / d12 - self.sigma6 / d6)) + self.tail_correction
-            virial += np.sum(24 * self.epsilon * (self.sigma6 / d6 - 2 * self.sigma12 / d12))
+            energy += 4 * self.epsilon * np.sum(self.sigma12 / d12 - self.sigma6 / d6) + self.tail_correction
+            virial += 24 * self.epsilon * np.sum(self.sigma6 / d6 - 2 * self.sigma12 / d12)
         pressure = self.rho_num * self.kb * self.temp - virial / (3 * self.volume)
         # print(f"The total energy is: {energy}, the total pressure is: {pressure}")
         return energy, pressure
 
     def single_particle_energy(self, particle_index: int) -> float:
         delta = self.pbc(self._particles - self._particles[particle_index])
-        d_sq = delta[:, 0] ** 2 + delta[:, 1] ** 2 + delta[:, 2] ** 2
+        d_sq = np.sum((delta ** 2), axis=1)
         d_sq[particle_index] = np.inf
         d_sq[particle_index:] = np.inf
         d_sq[d_sq > self.rcut ** 2] = np.inf
         d6 = d_sq ** 3
         d12 = d6 * d6
-        return np.sum(4 * self.epsilon * (self.sigma12 / d12 - self.sigma6 / d6)) + self.tail_correction
-
-    # @property
-    # def energy(self) -> float:
-    #     return self.total_energy_pressure[0]
-    #
-    # @property
-    # def pressure(self) -> float:
-    #     return self.total_energy_pressure[1]
+        return 4 * self.epsilon * np.sum(self.sigma12 / d12 - self.sigma6 / d6) + self.tail_correction
 
     def pbc(self, delta: np.ndarray) -> np.ndarray:
-        return delta - self.side_length * np.round(delta / self.side_length)
+        return (delta + self.side_length/2) % self.side_length - self.side_length/2
 
     def translate_particle(self) -> bool:
         # print("Translating Particle")
