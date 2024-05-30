@@ -42,11 +42,8 @@ class MonteCarloSimulation:
         energy = 0.0
         virial = 0.0
         for (i, pos_i) in enumerate(self._particles):
-            delta = self.pbc(self._particles[i+1:, :] - pos_i) # alleen de onderste driehoek van de matrix
+            delta = self.pbc(self._particles[i+1:, :] - pos_i)  # alleen de onderste driehoek van de matrix
             d_sq = np.sum((delta ** 2), axis=1)
-            # d_sq[i] = np.inf
-            # d_sq[i:] = np.inf
-            # d_sq[d_sq > self.rcut ** 2] = np.inf
             d_sq = d_sq[d_sq < self.rcut**2]
             d6 = d_sq ** 3
             d12 = d6 * d6
@@ -59,9 +56,7 @@ class MonteCarloSimulation:
     def single_particle_energy(self, particle_index: int) -> float:
         delta = self.pbc(self._particles - self._particles[particle_index])
         d_sq = np.sum((delta ** 2), axis=1)
-        d_sq[particle_index] = np.inf
-        # d_sq[particle_index:] = np.inf
-        # d_sq[d_sq > self.rcut ** 2] = np.inf
+        d_sq[particle_index] = self.side_length ** 2
         d_sq = d_sq[d_sq < self.rcut ** 2]
         d6 = d_sq ** 3
         d12 = d6 * d6
@@ -73,14 +68,19 @@ class MonteCarloSimulation:
     def translate_particle(self) -> bool:
         # print("Translating Particle")
         i = np.random.randint(self.npart)
-        old_position = self._particles[i].copy()
-
-        displacement = np.random.uniform(-self.delta, self.delta, 3)
-
-        new_position = self.pbc(old_position + displacement)
+        # old_position = self._particles[i].copy()
+        #
+        # displacement = np.random.uniform(-self.delta, self.delta, 3)
+        #
+        # new_position = self.pbc(old_position + displacement)
+        #
+        # e_old = self.single_particle_energy(i)
+        # self._particles[i] = new_position
+        # e_new = self.single_particle_energy(i)
 
         e_old = self.single_particle_energy(i)
-        self._particles[i] = new_position
+        displacement = np.random.uniform(-self.delta, self.delta, 3)
+        self._particles[i] = (self._particles[i] + displacement) % self.side_length
         e_new = self.single_particle_energy(i)
 
         delta_e = e_new - e_old
@@ -88,7 +88,7 @@ class MonteCarloSimulation:
         if delta_e < 0 or np.random.uniform(0, 1) < np.exp(-self.beta * delta_e):
             return True
         else:
-            self._particles[i] = old_position
+            self._particles[i] = (self._particles[i] - displacement) % self.side_length
             return False
 
     def start_conf(self, nsteps: int = 50) -> np.ndarray:
