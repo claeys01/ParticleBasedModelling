@@ -2,14 +2,13 @@ import numpy as np
 import scipy.constants as const
 from typing import Tuple
 import time
-from numba import njit, prange
 
-np.random.seed(0)
+# np.random.seed(0)
 
 
 class MonteCarloSimulation:
     def __init__(self, npart: int = 362, ncycle: int = 500000, temp: int = 150, side_length: float = 30.0, rcut: float = 14,
-                 sigma: float = 3.73, eta_kb: int = 148, delta: float = 0.5, molar_m: float = 16.04) -> None:
+                 sigma: float = 3.73, eta_kb: int = 148, delta: float = 0.5, molar_m: float = 16.04, box_path: str = '') -> None:
         self.ncycle = ncycle  # Number of cycles
         self.npart = npart  # Number of particles
         self.molar_m = molar_m / 1000  # Molar mass of the system [kg]
@@ -20,7 +19,12 @@ class MonteCarloSimulation:
         self.rcut3 = self.rcut ** 3  # Cutoff distance cubed
         self.rcut9 = self.rcut ** 9
 
-        self._particles = np.random.uniform(0, self.side_length, (self.npart, 3))  # Position of the particles
+        self.box_path = box_path
+        if self.box_path:
+            self._particles = self.get_coordinates() * 10 ** -10
+            self.npart = len(self._particles)
+        else:
+            self._particles = np.random.uniform(0, self.side_length, (self.npart, 3))  # Position of the particles
 
         self.sigma6 = (sigma * 10 ** -10) ** 6  # Sigma6 value
         self.sigma12 = self.sigma6 * self.sigma6  # Sigma12 value
@@ -68,16 +72,6 @@ class MonteCarloSimulation:
     def translate_particle(self) -> bool:
         # print("Translating Particle")
         i = np.random.randint(self.npart)
-        # old_position = self._particles[i].copy()
-        #
-        # displacement = np.random.uniform(-self.delta, self.delta, 3)
-        #
-        # new_position = self.pbc(old_position + displacement)
-        #
-        # e_old = self.single_particle_energy(i)
-        # self._particles[i] = new_position
-        # e_new = self.single_particle_energy(i)
-
         e_old = self.single_particle_energy(i)
         displacement = np.random.uniform(-self.delta, self.delta, 3)
         self._particles[i] = (self._particles[i] + displacement) % self.side_length
@@ -91,6 +85,17 @@ class MonteCarloSimulation:
             self._particles[i] = (self._particles[i] - displacement) % self.side_length
             return False
 
+    def get_coordinates(self):
+        coordinates = []
+        with open(self.box_path, 'r') as file:
+            lines = file.readlines()
+            for line in lines[2:]:
+                parts = line.split()
+                if len(parts) == 4 and all(part.replace('.', '').isdigit() for part in parts[1:]):
+                    x, y, z = map(float, parts[1:])
+                    coordinates.append([x, y, z])
+        return np.array(coordinates)
+
     def start_conf(self, nsteps: int = 50) -> np.ndarray:
         for i in range(nsteps * self.npart):
             print(f"Translation {i + 1}/{nsteps * self.npart}", end='\r', flush=True)
@@ -103,7 +108,9 @@ class MonteCarloSimulation:
         P_ave = np.zeros(self.ncycle)
         accepted_moves = 0
 
-        self.start_conf(50)
+        if not self.box_path:
+            self.start_conf(50)
+            
         for i in range(self.ncycle):
             start = time.time()
             if self.translate_particle():
@@ -118,7 +125,7 @@ class MonteCarloSimulation:
 
 
 if __name__ == '__main__':
-    mc_sim = MonteCarloSimulation(npart=362, ncycle=5000, side_length=30, rcut=14)
+    mc_sim = MonteCarloSimulation(npart=6, ncycle=5000, side_length=30, rcut=14)
     # print(mc_sim._particles)
     mc_sim.start_conf(50)
     E_ave, P_ave, acceptance_ratio = mc_sim.run()
