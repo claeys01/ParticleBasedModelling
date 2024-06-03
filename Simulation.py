@@ -102,20 +102,20 @@ class MonteCarloSimulation:
             self.translate_particle()
         return self._particles
 
-    def run(self) -> Tuple[np.ndarray, np.ndarray, float]:
+    def run(self, start_conf: bool = True) -> Tuple[np.ndarray, np.ndarray, float]:
         # print("Running Monte Carlo Simulation")
         E_ave = np.zeros(self.ncycle)
         P_ave = np.zeros(self.ncycle)
         accepted_moves = 0
 
-        if not self.box_path:
+        if not self.box_path and start_conf:
             self.start_conf(50)
             
         for i in range(self.ncycle):
             start = time.time()
             if self.translate_particle():
                 accepted_moves += 1
-                if i % 500 == 0:
+                if self.npart % i == 0:
                     E_ave[i], P_ave[i] = self.total_energy_pressure
                     end = time.time()
                     print(f"Iteration {i + 1}/{self.ncycle}, time: {end-start} seconds", end='\r', flush=True)
