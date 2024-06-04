@@ -14,21 +14,6 @@ import pandas as pd
 sigma = 3.73
 eta_kb = 148
 
-# question 2.1
-T_21 = 150
-side_length_21 = 30
-rcut_21 = 14
-ncycles21 = 500000
-npart = 362
-
-# question21(T_21, side_length_21, rcut_21, ncycles21)
-
-# question 2.2
-T_22 = 400
-side_length_22 = 75
-rcut_22 = 30
-# question22(T_22, side_length_22, rcut_22)
-
 
 def create_file_names(folder: str, delta: float):
     rounded = f"{delta:.7f}"  # Round to 7 decimal places
@@ -37,17 +22,17 @@ def create_file_names(folder: str, delta: float):
     return formatted_name
 
 
-def question21(T, side_length, rcut, ncycles):
-    print("exercise 2.1: gas system")
-    delta_arr = np.linspace(0.005, 1, 25)
-    directory = 'Ass21Outputs/' + str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + '/'
+def question21(T, side_length, rcut, ncycles=500000):
+    print("exercise 2.1: liquid system")
+    delta_arr = np.linspace(0.005, side_length/2, 25)
+    directory = 'Ass21Outputs/' + str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + '_' + str(T) + '_' + '/'
     os.mkdir(directory)
     for (i, delta) in enumerate(delta_arr):
         print(i, delta)
         start = time.time()
-        box = 'box.xyz'
+        # box = 'box.xyz'
         mc_21 = Simulation.MonteCarloSimulation(temp=T, side_length=side_length, rcut=rcut,
-                                                eta_kb=eta_kb, sigma=sigma, ncycle=ncycles, delta=delta, box_path=box)
+                                                eta_kb=eta_kb, sigma=sigma, ncycle=ncycles, delta=delta)
         E_ave, P_ave, acceptance_ratio = mc_21.run()
 
         filename = create_file_names(directory, delta)
@@ -55,7 +40,7 @@ def question21(T, side_length, rcut, ncycles):
         with open(filename, mode='w', newline='') as csfile:
             csv_writer = csv.writer(csfile, delimiter=',', quotechar='"')
             csv_writer.writerow(fields)
-            for j in range(ncycles21):
+            for j in range(ncycles):
                 if E_ave[j] != 0 and P_ave[j] != 0:
                     csv_writer.writerow([delta, E_ave[j], P_ave[j], acceptance_ratio])
         end = time.time()
@@ -65,30 +50,30 @@ def question21(T, side_length, rcut, ncycles):
     print("excersice 2.1 done")
 
 
-def question22(T, side_length, rcut):
-    print("exercise 2.2: liquid system")
+def question22(T, side_length, rcut, ncycles=500000):
+    print("exercise 2.2: gas system")
     delta_arr = np.linspace(0.005, side_length / 2, 25)
     density = 9.68
     num_molecules = get_num_molecules(density, side_length, 16.04 / 1000)
     print(f"num_molecules: {num_molecules}")
 
-    directory = 'Ass22Outputs/' + str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + '/'
+    directory = 'Ass22Outputs/' + str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + '_' + str(T) + '/'
     os.mkdir(directory)
 
     for (i, delta) in enumerate(delta_arr):
 
         start = time.time()
-        mc_21 = Simulation.MonteCarloSimulation(temp=T, side_length=side_length, rcut=rcut,
+        mc_22 = Simulation.MonteCarloSimulation(temp=T, side_length=side_length, rcut=rcut,
                                                 eta_kb=eta_kb, sigma=sigma, delta=delta, npart=num_molecules)
 
-        E_ave, P_ave, acceptance_ratio = mc_21.run()
+        E_ave, P_ave, acceptance_ratio = mc_22.run()
 
-        filename = create_file_names(directory, delta, acceptance_ratio)
+        filename = create_file_names(directory, delta)
         fields = ['Delta', 'Energy', 'Pressure', 'Acceptance Ratio']
         with open(filename, mode='w', newline='') as csfile:
             csv_writer = csv.writer(csfile, delimiter=',', quotechar='"')
             csv_writer.writerow(fields)
-            for j in range(ncycles21):
+            for j in range(ncycles):
                 if E_ave[j] != 0 and P_ave[j] != 0:
                     csv_writer.writerow([delta, E_ave[j], P_ave[j], acceptance_ratio])
         end = time.time()
@@ -98,10 +83,8 @@ def question22(T, side_length, rcut):
     print("excersice 2.2 done")
 
 
-
-
 # question 2.3
-def question23(T, side_length, rcut, delta):
+def question23(T, side_length, rcut, delta, ncycles=500000):
     print("exercise 2.3: liquid system")
     start = time.time()
 
@@ -116,7 +99,7 @@ def question23(T, side_length, rcut, delta):
     with open(filename, mode='w', newline='') as csfile:
         csv_writer = csv.writer(csfile, delimiter=',', quotechar='"')
         csv_writer.writerow(fields)
-        for j in range(ncycles21):
+        for j in range(ncycles):
             if E_ave[j] != 0 and P_ave[j] != 0:
                 csv_writer.writerow([delta, E_ave[j], P_ave[j], acceptance_ratio])
         end = time.time()
@@ -171,10 +154,42 @@ def plot_energy_vs_cycle(directory: str, savefig: bool = False) -> None:
 def get_num_molecules(density: float, side_length: float, molar_mass: float) -> float:
     return math.ceil((density * (side_length * 10 ** -10) ** 3 / molar_mass) * const.N_A)
 
+def side_length_calc(molar_mass: float, npart: int, rho: float) -> float:
+    return (molar_mass/1000*npart/(rho*const.N_A))**(1/3)
+
+
+def question31(rcut, delta, rho, ncycles=500000):
+    molar_mass = 16.04
+    npart = 362
+    side_length = (molar_mass*npart/(rho*const.N_A))**(1/3)
+
+    temp_arr = np.array([200, 300, 400])
+
+    directory = 'Ass31Outputs/' + str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + '/'
+    os.mkdir(directory)
+
+    for temp in temp_arr:
+        start = time.time()
+        mc = Simulation.MonteCarloSimulation(temp=temp, side_length=side_length, rcut=rcut, eta_kb=eta_kb, sigma=sigma, delta=delta)
+        E_ave, P_ave, acceptance_ratio = mc.run(start_conf=False)
+        filename = directory + f'{temp}.csv'
+
+        fields = ['Delta', 'Energy', 'Pressure', 'Acceptance Ratio']
+        with open(filename, mode='w', newline='') as csfile:
+            csv_writer = csv.writer(csfile, delimiter=',', quotechar='"')
+            csv_writer.writerow(fields)
+            for j in range(ncycles):
+                if E_ave[j] != 0 and P_ave[j] != 0:
+                    csv_writer.writerow([delta, E_ave[j], P_ave[j], acceptance_ratio])
+        end = time.time()
+        print(f"Temp: {temp}, Elapsed time: {end-start} seconds")
+
+
 if __name__ == '__main__':
+    print(((16.04 / 1000 * 362)/(358.4*const.N_A))**(1/3)*10**10)
     # question21(T_21, side_length_21, rcut_21, ncycles21)
     # question22(T_22, side_length_22, rcut_22)
     # question23(T_21, side_length_21, rcut_21, 0.461)
-    plot_energy_vs_cycle('Ass23Outputs/2024-06-03_14-06-40/')
+    # plot_energy_vs_cycle('Ass23Outputs/2024-06-03_14-06-40/')
 
     # plot_acceptance_ratio_vs_delta('Ass21Outputs/2024-05-31_16-51-56/')

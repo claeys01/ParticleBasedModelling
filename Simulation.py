@@ -27,7 +27,7 @@ class MonteCarloSimulation:
             print("Particles created")
         else:
             print("No box path given")
-            self._particles = np.round(np.random.uniform(0, self.side_length, (self.npart, 3)), 3)  # Position of the particles
+            self._particles = np.random.uniform(0, self.side_length, (self.npart, 3))  # Position of the particles
             print("Particles created")
 
         self.sigma6 = (sigma * 10 ** -10) ** 6  # Sigma6 value
