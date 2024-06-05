@@ -58,3 +58,19 @@ delta_31 = 0.461
 rho31 = 358
 
 Assignment_funcs.question31(rcut_31, delta_31, rho31)
+
+# %%
+import Assignment_funcs
+
+"""
+Question 3.2: modeling a gas CH4 system and running the mc simulation for different temperatures
+
+Output: csv files with the energy, pressure and acceptance ratio for each temperature
+"""
+
+rcut_32 = 50
+delta_32 = 21.87708
+rho32 = 1.6
+
+Assignment_funcs.question32(rho32, rcut_32, delta_32)
+

@@ -101,6 +101,7 @@ class MonteCarloSimulation:
         return np.array(coordinates)
 
     def start_conf(self, nsteps: int = 50) -> np.ndarray:
+        print("Starting Configuration")
         for i in range(nsteps * self.npart):
             print(f"Translation {i + 1}/{nsteps * self.npart}", end='\r', flush=True)
             self.translate_particle()
@@ -112,7 +113,7 @@ class MonteCarloSimulation:
         P_ave = np.zeros(self.ncycle)
         accepted_moves = 0
 
-        if self.box_path or not start_conf:
+        if not self.box_path and start_conf:
             self.start_conf(50)
 
         start = time.time()
