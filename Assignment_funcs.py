@@ -15,17 +15,16 @@ sigma = 3.73
 eta_kb = 148
 
 def question21(T, side_length, rcut, ncycles=500000):
-    print("exercise 2.1: liquid system")
+    print("exercise 2.1: liquid system \n")
     delta_arr = np.linspace(0.005, side_length/2, 25)
-    directory = 'Ass21Outputs/' + str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + '_' + str(T) + '_' + '/'
+    directory = 'Ass21Outputs/' + str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + '_' + str(T) + '/'
     os.mkdir(directory)
     for (i, delta) in enumerate(delta_arr):
-        print(i, delta)
         start = time.time()
-        # box = 'box.xyz'
+        box = 'box.xyz'
         mc_21 = Simulation.MonteCarloSimulation(temp=T, side_length=side_length, rcut=rcut,
-                                                eta_kb=eta_kb, sigma=sigma, ncycle=ncycles, delta=delta)
-        E_ave, P_ave, acceptance_ratio = mc_21.run()
+                                                eta_kb=eta_kb, sigma=sigma, ncycle=ncycles, delta=delta, box_path=box)
+        E_ave, P_ave, acceptance_ratio = mc_21.run(start_conf=True)
 
         filename = create_file_names(directory, delta)
         fields = ['Delta', 'Energy', 'Pressure', 'Acceptance Ratio']
@@ -99,9 +98,11 @@ def question23(T, side_length, rcut, delta, ncycles=500000):
 
 
 def question31(rcut, delta, rho, ncycles=500000):
+    print("exercise 3.1: liquid system")
     molar_mass = 16.04
     npart = 362
-    side_length = (molar_mass*npart/(rho*const.N_A))**(1/3)
+    side_length = side_length_calc(molar_mass, npart, rho) * 10**10
+    print(side_length)
 
     temp_arr = np.array([200, 300, 400])
 
@@ -110,10 +111,37 @@ def question31(rcut, delta, rho, ncycles=500000):
 
     for temp in temp_arr:
         start = time.time()
-        mc = Simulation.MonteCarloSimulation(temp=temp, side_length=side_length, rcut=rcut, eta_kb=eta_kb, sigma=sigma, delta=delta)
-        E_ave, P_ave, acceptance_ratio = mc.run(start_conf=False)
+        mc = Simulation.MonteCarloSimulation(temp=temp, ncycle=ncycles, side_length=side_length, rcut=rcut, eta_kb=eta_kb, sigma=sigma, delta=delta)
+        energy, pressure, acceptance_ratio = mc.run(start_conf=False)
         filename = directory + f'{temp}.csv'
+        fields = ['Delta', 'Energy', 'Pressure', 'Acceptance Ratio']
+        with open(filename, mode='w', newline='') as csfile:
+            csv_writer = csv.writer(csfile, delimiter=',', quotechar='"')
+            csv_writer.writerow(fields)
+            for j in range(ncycles):
+                if energy[j] != 0 and pressure[j] != 0:
+                    csv_writer.writerow([delta, energy[j], pressure[j], acceptance_ratio])
+        end = time.time()
+        print(f"Temp: {temp}, Elapsed time: {end-start} seconds")
+    print("excersice 3.1 done")
 
+def question32_tune(T, side_length, rcut, num_molecules, ncycles=500000) -> list[float]:
+    print(f"exercise 3.2: gas system, T: {T}")
+    delta_arr = np.linspace(0.005, side_length / 2, 25)
+    print(f"num_molecules: {num_molecules}")
+    durations = []
+    directory = 'Ass32_tune_outputs/' + str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + '_' + str(T) + '/'
+    os.mkdir(directory)
+
+    for (i, delta) in enumerate(delta_arr):
+
+        start = time.time()
+        mc_32 = Simulation.MonteCarloSimulation(temp=T, side_length=side_length, rcut=rcut,
+                                                eta_kb=eta_kb, sigma=sigma, delta=delta, npart=num_molecules)
+
+        E_ave, P_ave, acceptance_ratio = mc_32.run()
+
+        filename = create_file_names(directory, delta)
         fields = ['Delta', 'Energy', 'Pressure', 'Acceptance Ratio']
         with open(filename, mode='w', newline='') as csfile:
             csv_writer = csv.writer(csfile, delimiter=',', quotechar='"')
@@ -122,8 +150,11 @@ def question31(rcut, delta, rho, ncycles=500000):
                 if E_ave[j] != 0 and P_ave[j] != 0:
                     csv_writer.writerow([delta, E_ave[j], P_ave[j], acceptance_ratio])
         end = time.time()
-        print(f"Temp: {temp}, Elapsed time: {end-start} seconds")
-    print("excersice 3.1 done")
+        duration = end - start
+        durations.append(duration)
+        print(f"{i}: Delta= {round(delta, 5)}, acceptance ratio = {round(acceptance_ratio, 5)}, duration = {round(end - start, 5)} seconds \n")
+    print("excersice 3.2 done")
+    return durations
 
 def question32(rho: float, rcut: float, delta: float, ncycles=500000) -> None:
     print("exercise 3.2: gas system")
@@ -131,8 +162,11 @@ def question32(rho: float, rcut: float, delta: float, ncycles=500000) -> None:
 
     molar_mass = 16.04
     npart = 362
-    side_length = (molar_mass * npart / (rho * const.N_A)) ** (1 / 3)
+    # side_length = (molar_mass * npart / (rho * const.N_A)) ** (1 / 3)
+    side_length = side_length_calc(molar_mass, npart, rho) * 10**10
+    print(side_length)
     temp_arr = np.array([200, 300, 400])
+
 
     directory = 'Ass32Outputs/' + str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + '/'
     os.mkdir(directory)
@@ -166,38 +200,48 @@ def get_acceptance_ratio(directory: str):
 
             acceptance_ratios.append(df['Acceptance Ratio'][0])
             deltas.append(df['Delta'][0])
-    return np.array(acceptance_ratios), np.array(deltas)
+    return np.array([acceptance_ratios for deltas, acceptance_ratios in sorted(zip(deltas, acceptance_ratios))]), np.sort(np.array(deltas))
 
-def plot_acceptance_ratio_vs_delta(directory: str, savefig: bool = False) -> None:
+def plot_acceptance_ratio_vs_delta(directory: str, prefix: str = 'q21'):
+    acceptance_ratio, delta = get_acceptance_ratio(directory)
     fig = plt.figure(figsize=(10, 5))
     ax = fig.add_subplot(111)
-    acceptance_ratio, delta = get_acceptance_ratio(directory)
-    ax.scatter(delta, acceptance_ratio)
+    ax.scatter(delta, acceptance_ratio, marker='x')
+    ax.plot(delta, acceptance_ratio, linestyle='dashed', color='red')
 
+    # put labels on the dots of the scatterplot but offset the labels such that they do not overlap
     for (i, delta) in enumerate(delta):
-        ax.annotate(f"{delta:.3f}", (delta, acceptance_ratio[i]))
-    ax.set_xlabel('Delta')
+        if i % 2 == 0:
+            ax.annotate(f"{delta:.3f}", (delta, acceptance_ratio[i]), xytext=(0, 5), textcoords='offset points')
+
+    ax.set_xlabel('Delta [Å]')
     ax.set_ylabel('Acceptance Ratio')
     ax.set_title('Acceptance Ratio vs Delta')
-    if savefig:
-        plt.savefig(str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + 'AcceptanceRatioVsDelta.png')
     plt.grid()
+    plt.savefig(prefix + '_' + 'AcceptanceRatioVsDelta.png')
     plt.show()
 
-def plot_energy_vs_cycle(directory: str, savefig: bool = False) -> None:
+def plot_energy_vs_cycle(directory: str, prefix: str, startfrom: int) -> None:
     fig = plt.figure(figsize=(10, 5))
     ax = fig.add_subplot(111)
     for file in os.listdir(directory):
         if file.endswith(".csv"):
             df = pd.read_csv(directory + file)
-            ax.plot(df.index[10:], (df['Energy'][10:]/362)*10**21, label=file)
+            energy = (df['Energy'][startfrom:]/362)*10**21
+            energy_running_average = np.cumsum(energy) / (np.arange(len(energy)) + 1)
+
+
+
+            sample = df.index[startfrom:]
+            cycle = np.linspace(0, 500000, len(sample))
+
+            ax.plot(cycle, energy, alpha=0.7)
+            ax.plot(cycle, energy_running_average, linestyle='dashed', color='red')
     ax.set_xlabel('Cycle')
     ax.set_ylabel('Zepto Joule [10^-21] J/Atom')
     ax.set_title('Energy vs Cycle')
-    ax.legend()
-    if savefig:
-        plt.savefig(str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + 'EnergyVsCycle.png')
     plt.grid()
+    plt.savefig(prefix + '_EnergyVsCycle.png')
     plt.show()
 
 def get_num_molecules(density: float, side_length: float, molar_mass: float) -> float:
@@ -222,10 +266,12 @@ if __name__ == '__main__':
     # print(split_str)
     # str_join = '_'.join(split_str)
     # print(str_join)
-    print(((16.04 / 1000 * 362)/(358.4*const.N_A))**(1/3)*10**10)
+    # print(((16.04 / 1000 * 362)/(358.4*const.N_A))**(1/3)*10**10)
     # question21(T_21, side_length_21, rcut_21, ncycles21)
     # question22(T_22, side_length_22, rcut_22)
     # question23(T_21, side_length_21, rcut_21, 0.461)
     # plot_energy_vs_cycle('Ass23Outputs/2024-06-03_14-06-40/')
 
-    plot_acceptance_ratio_vs_delta('Ass22Outputs/2024-06-05_10-20-41_400/')
+    # plot_acceptance_ratio_vs_delta('Ass22Outputs/2024-06-05_10-20-41_400/')
+    plot_energy_vs_cycle('Ass23Outputs/2024-06-03_14-06-40/', 'test', 15)
+
