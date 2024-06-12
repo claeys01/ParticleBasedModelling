@@ -227,16 +227,45 @@ def plot_energy_vs_cycle(directory: str, prefix: str, startfrom: int) -> None:
     for file in os.listdir(directory):
         if file.endswith(".csv"):
             df = pd.read_csv(directory + file)
-            energy = (df['Energy'][startfrom:]/362)*10**21
+            energy = (np.array(df['Energy'][startfrom:])/362)*10**21
             energy_running_average = np.cumsum(energy) / (np.arange(len(energy)) + 1)
 
+            # Calculate the running standard deviation
+            a = np.cumsum((energy - energy_running_average)**2)
+            b = a / (np.arange(len(energy)) + 1)
+
+            running_std = np.array([i**0.5 for i in b])
+            # running_std = np.array(running_std.tolist())
+
+            # Calculate the upper and lower bounds
+            lower_bound = np.array(energy_running_average - running_std, dtype=float)
+            upper_bound = np.array(energy_running_average + running_std, dtype=float)
+
+            for item in upper_bound:
+                if type(item) != float:
+                    print(item)
+
+            cycle = np.linspace(0, 500000, len(energy), dtype=float)
+            # cycle = [float(i) for i in cycle]
 
 
-            sample = df.index[startfrom:]
-            cycle = np.linspace(0, 500000, len(sample))
+            for i in range(len(energy)):
+                if math.isnan(energy[i]) or math.isnan(energy_running_average[i]) or math.isnan(lower_bound[i]) or math.isnan(upper_bound[i]):
+                    print(f"energy: {energy[i]}, energy_running_average: {energy_running_average[i]}, lower_bound: {lower_bound[i]}, upper_bound: {upper_bound[i]}")
 
-            ax.plot(cycle, energy, alpha=0.7)
-            ax.plot(cycle, energy_running_average, linestyle='dashed', color='red')
+                    if not isinstance(energy[i], float) or not isinstance(energy_running_average[i], float) or not isinstance(lower_bound[i], float) or not isinstance(upper_bound[i], float):
+                        print("Not a float")
+
+                # print(np.isinfinite(lower_bound[i])
+
+            ax.plot(cycle, energy, alpha=0.7, label='Energy')
+            ax.plot(cycle, energy_running_average, linestyle='dashed', color='red', label='Running Average')
+            ax.plot(cycle, lower_bound, linestyle='dotted', color='gray', label='Lower Bound')
+            ax.plot(cycle, upper_bound, linestyle='dotted', color='gray', label='Upper Bound')
+            ax.fill_between(cycle, lower_bound, upper_bound, color='gray', alpha=0.3, label='Standard Deviation Bounds')
+
+
+
     ax.set_xlabel('Cycle')
     ax.set_ylabel('Zepto Joule [10^-21] J/Atom')
     ax.set_title('Energy vs Cycle')
