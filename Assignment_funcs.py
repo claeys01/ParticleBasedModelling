@@ -17,9 +17,10 @@ import CoolProp.CoolProp as CP
 sigma = 3.73
 eta_kb = 148
 
+
 def question21(T, side_length, rcut, ncycles=500000):
     print("exercise 2.1: liquid system \n")
-    delta_arr = np.linspace(0.005, 3, 25)
+    delta_arr = np.linspace(0.005, side_length/2, 25)
     directory = 'Ass21Outputs/' + str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + '_' + str(T) + '/'
     os.mkdir(directory)
     for (i, delta) in enumerate(delta_arr):
@@ -128,7 +129,8 @@ def question31(rcut=14, delta=0.736, rho=358.4, ncycles=500000, side_length=30):
         print(f"Temp: {temp}, Elapsed time: {end-start} seconds")
     print("excersice 3.1 done")
 
-def question32_tune(T, side_length, rcut, num_molecules, ncycles=500000) -> list[float]:
+
+def question32_tune(T, side_length, rcut, ncycles=500000) -> list[float]:
     print(f"exercise 3.2: gas system, T: {T}")
     delta_arr = np.linspace(0.005, side_length / 2, 25)
     durations = []
@@ -158,14 +160,17 @@ def question32_tune(T, side_length, rcut, num_molecules, ncycles=500000) -> list
     print("excersice 3.2 done")
     return durations
 
-def question32(rho: float, rcut: float, delta: float, ncycles=500000) -> None:
+
+def question32(rho: float, rcut: float, ncycles=500000) -> None:
     print("exercise 3.2: gas system")
 
     start = time.time()
     molar_mass = 16.04
     npart = 362
     side_length = side_length_calc(molar_mass, npart, rho) * 10**10
+    delta=side_length/2
     print(side_length)
+    print(f"side length: {side_length}, num_molecules: {npart} \n")
 
     directory = 'Ass32Outputs/' + str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + '/'
     os.mkdir(directory)
@@ -191,6 +196,7 @@ def question32(rho: float, rcut: float, delta: float, ncycles=500000) -> None:
 
     print("excersice 3.2 done in ", end2 - start, " seconds \n")
 
+
 def get_acceptance_ratio(directory: str):
     acceptance_ratios = []
     deltas = []
@@ -201,6 +207,7 @@ def get_acceptance_ratio(directory: str):
             acceptance_ratios.append(df['Acceptance Ratio'][0])
             deltas.append(df['Delta'][0])
     return np.array([acceptance_ratios for deltas, acceptance_ratios in sorted(zip(deltas, acceptance_ratios))]), np.sort(np.array(deltas))
+
 
 def plot_acceptance_ratio_vs_delta(directory: str, prefix: str = 'q21', given_y: float = 0.35) -> None:
     acceptance_ratio, delta = get_acceptance_ratio(directory)
@@ -310,6 +317,7 @@ def plot_energy_vs_cycle(directory: str, prefix: str, startfrom: int) -> None:
     plt.savefig(prefix + '_EnergyVsCycle.png')
     plt.show()
 
+
 def plot_energy_vs_cycle3(directory: str, prefix: str, startfrom: int) -> None:
     fig = plt.figure(figsize=(10, 5))
     ax = fig.add_subplot(111)
@@ -360,6 +368,7 @@ def plot_energy_vs_cycle3(directory: str, prefix: str, startfrom: int) -> None:
     plt.legend()
     plt.savefig(prefix + '_EnergyVsCycle.png')
     plt.show()
+
 
 def plot_temperature_vs_pressure(directory: str, prefix: str, startfrom: int) -> None:
     fig = plt.figure(figsize=(10, 5))
@@ -433,6 +442,7 @@ def plot_temperature_vs_pressure(directory: str, prefix: str, startfrom: int) ->
     plt.savefig(prefix + '_TemperatureVsPressure.png')
     plt.show()
 
+
 def plot_pressure_vs_cycle(directory: str, prefix: str, startfrom: int) -> None:
     fig = plt.figure(figsize=(10, 5), layout='tight')
     ax3 = fig.add_subplot(313)
@@ -493,6 +503,8 @@ def plot_pressure_vs_cycle(directory: str, prefix: str, startfrom: int) -> None:
     ax3.set_xlabel('Cycle')
     plt.show()
     fig.savefig(prefix + '_PressureVsCycle.png')
+
+
 def plot_temperature_vs_pressure32(directory: str, prefix: str, startfrom: int) -> None:
     fig = plt.figure(figsize=(10, 5))
     ax = fig.add_subplot(111)
@@ -562,6 +574,7 @@ def plot_temperature_vs_pressure32(directory: str, prefix: str, startfrom: int) 
     plt.grid()
     plt.savefig(prefix + '_TemperatureVsPressure.png')
     plt.show()
+
 
 def get_num_molecules(density: float, side_length: float, molar_mass: float) -> int:
     return math.ceil((density * (side_length * 10 ** -10) ** 3 / molar_mass) * const.N_A)
