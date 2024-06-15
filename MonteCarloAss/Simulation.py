@@ -127,6 +127,9 @@ class MonteCarloSimulation:
 
 
 if __name__ == '__main__':
+
+
+
     import Assignment_funcs
     """
     Question 2.1 modeling a liquid CH4 system and running the mc simulation 

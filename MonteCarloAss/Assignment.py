@@ -1,6 +1,5 @@
 import Assignment_funcs
-import matplotlib.pyplot as plt
-from datetime import datetime
+
 """
 Question 2.1 modeling a liquid CH4 system and running the mc simulation 
 for multiple dela values to determine the aoptimal displacement value
@@ -83,7 +82,6 @@ Assignment_funcs.plot_energy_vs_cycle(directory_31, 'question31', 15)
 
 
  # %%
-import Assignment_funcs
 import matplotlib.pyplot as plt
 import os
 import pandas as pd
