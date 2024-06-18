@@ -2,6 +2,7 @@ import numpy as np
 import scipy.constants as const
 from typing import Tuple
 import time
+import math
 
 
 class MonteCarloSimulation:
@@ -49,6 +50,8 @@ class MonteCarloSimulation:
             delta = self.pbc(self._particles[i+1:, :] - pos_i)
             d_sq = np.sum((delta ** 2), axis=1)
             d_sq = d_sq[d_sq < self.rcut**2]
+            # d_sq[d_sq > self.rcut**2] = np.inf
+            # d1[d_sq > self.rcut**2]
             d6 = d_sq ** 3
             d12 = d6 * d6
             energy += 4 * self.epsilon * np.sum(self.sigma12 / d12 - self.sigma6 / d6) + self.tail_correction
@@ -123,6 +126,10 @@ class MonteCarloSimulation:
         acceptance_ratio = accepted_moves / self.ncycle
 
         return E_ave, P_ave, acceptance_ratio
+
+    @staticmethod
+    def get_num_molecules(density: float, side_length: float, molar_mass: float) -> int:
+        return math.ceil((density * (side_length * 10 ** -10) ** 3 / (molar_mass/1000)) * const.N_A)
 
 
 
