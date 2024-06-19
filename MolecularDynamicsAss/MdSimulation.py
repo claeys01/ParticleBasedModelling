@@ -70,7 +70,6 @@ class MolecularDynamicsSimulation:
         # plt.show()
 
         self._velocities = self.initVel()
-        print(self._velocities)
         self._forces = self.LJ_forces()
 
     @staticmethod
@@ -129,7 +128,7 @@ class MolecularDynamicsSimulation:
         # velocities *= scaling_factor[:, np.newaxis] # scale to Å/fs
 
         velocities = np.random.normal(0, np.sqrt(self.ndim*self.kb*self.initial_temp/self.mass), (self.npart, self.ndim))
-
+        # velocities_mean = np.mean(velocities, axis=0)  # Ensure zero net momentum
         print(f"Velocities initalised with a temperature of {self.initial_temp} K")
         # print(velocities)
         return velocities
@@ -145,6 +144,7 @@ class MolecularDynamicsSimulation:
             d_sq = np.sum((delta ** 2), axis=1).reshape(self.npart,1)
             # d_sq = np.sum((delta ** 2), axis=0)
             d_sq[d_sq > self.rcut ** 2] = np.inf
+            d_sq[d_sq< self.sigma**2] = self.sigma**2
             d_sq[i] = np.inf
             d6 = d_sq ** 3
             d12 = d6 * d6
@@ -155,7 +155,7 @@ class MolecularDynamicsSimulation:
 
 
     @property
-    def kineticEenrgy(self) -> float:
+    def kineticEnergy(self) -> float:
         """
         Calculate the kinetic energy of the system in J
         """
@@ -168,6 +168,7 @@ class MolecularDynamicsSimulation:
             delta = self.pbc(self._particles[i+1:, :] - pos_i)
             d_sq = np.sum((delta ** 2), axis=1)
             d_sq = d_sq[d_sq < self.rcut**2]
+            d_sq[d_sq < self.sigma**2] = self.sigma**2
             d6 = d_sq ** 3
             d12 = d6 * d6
             energy += 4 * self.epsilon * np.sum(self.sigma12 / d12 - self.sigma6 / d6) + self.tail_correction
@@ -176,12 +177,11 @@ class MolecularDynamicsSimulation:
     @property
     def temperature(self) -> float:
         """
-        mogelijks nog delen door npart
 
         :return: the temperature of the system in Kelvin
         """
 
-        return 2.0 * self.kineticEenrgy / (self.ndim * self.kb)  # K
+        return 2.0 * self.kineticEnergy / (self.ndim * self.kb * self.npart)  # K
 
 
     @property
@@ -192,6 +192,7 @@ class MolecularDynamicsSimulation:
             delta = self.pbc(self._particles[i + 1:, :] - pos_i)
             d_sq = np.sum((delta ** 2), axis=1)
             d_sq[d_sq > self.rcut ** 2] = np.inf
+            d_sq[d_sq< self.sigma**2] = self.sigma**2
             d6 = d_sq ** 3
             d12 = d6 * d6
             virial_contribution += 24 * self.epsilon * np.sum(self.sigma6 / d6 - 2 * self.sigma12 / d12)
@@ -231,12 +232,7 @@ class MolecularDynamicsSimulation:
                 temp[:, dim + 6] = self._forces[:, dim] * 1e10/4184/self.NA
 
             for part in range(self.npart):
-                # print((part + 1, 1, *temp[part, :]))
                 file.write('%i %i %.4e %.4e %.4e %.6e %.6e %.6e %.4e %.4e %.4e\n' % (part + 1, 1, *temp[part, :]))
-                # print('%i %i %.4e %.4e %.4e %.6e %.6e %.6e %.4e %.4e %.4e\n' % (part + 1, 1, *temp[part, :]))
-                # file.write(f"{part+1} 1 {self._particles[part, 0]} {self._particles[part, 1]} {self._particles[part, 2]}\n")
-                # print(f"{part+1} 1 {self._particles[part, 0]}.f {self._particles[part, 1]} {self._particles[part, 2]}\n")
-
 
     def velocityVerlet(self) -> None:
         """
@@ -249,6 +245,8 @@ class MolecularDynamicsSimulation:
         # Update positions
         self._particles += self._velocities * self.dt + 0.5 * (forces / self.mass) * (self.dt ** 2)
 
+        self._particles = self.pbc(self._particles)
+
         # Compute new forces
         new_forces = self.LJ_forces()
 
@@ -258,41 +256,21 @@ class MolecularDynamicsSimulation:
         # Update forces
         self._forces = new_forces
 
-        self._particles = self.pbc(self._particles)
-
-        # print(self._particles)
-
-        # print(f"Step velocities: {np.linalg.norm(self._velocities, axis=1).max()}")
-        # print(f"Step forces: {np.linalg.norm(self._forces, axis=1).max()}")
-
-
     def run(self):
 
         # write outputs to a file in outputs directory
-        filename = 'MolecularDynamicsAss/Outputs/' + "_trajectory.lammps"
+        filename = 'C:\\Users\\Matth\\Master\\Y1\\Q4\\particleBasedModeling\\MolecularDynamicsAss\\Outputs\\' + "_trajectory.lammps2"
         for t in range(self.t_end):
-    #         print(
-    #         f"""\r{t}|
-    # Temperature: {self.temperature} Kelvin
-    # Kinetic energy: {self.kineticEenrgy} kJ/mol
-    # Step forces: {np.linalg.norm(self._forces, axis=1).max()}
-    # Step velocities: {np.linalg.norm(self._velocities, axis=1).max()}
-    # Pressure: {self.pressure} kJ/(mol Å^3)
-    # Max distance from origin: {np.linalg.norm(self._particles, axis=1).max()} Å
-    #         """, end='', flush=True)
-
             self.velocityVerlet()
             if t % 100 == 0:
                 print(
                     f"""\r{t}| 
                     Temperature: {self.temperature} Kelvin
-                    Kinetic energy: {self.kineticEenrgy *1e-3/4184/self.NA} kCa/mol
-                    Step max velocity: {np.linalg.norm(self._velocities, axis=1).max() * 1e10/1e15}
-                    Step max force: {(self._forces).max()}
+                    Kinetic energy: {self.kineticEnergy * 1e-3 / 4184 * self.NA} kCa/mol
+                    Step max velocity: {np.linalg.norm(self._velocities, axis=1).max() * 1e10/1e15} Å/fs
+                    Step max force: {(self._forces).max()} N
                             """, end='', flush=True)
-                # print(self._particles, end='\r', flush=True)
                 self.write_frame(filename, t)
-                # print(f"Step {t} of {self.t_end} completed", end='\r', flush=True)
 
         print("Simulation completed")
 
