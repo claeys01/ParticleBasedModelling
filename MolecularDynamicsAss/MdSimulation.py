@@ -117,7 +117,7 @@ class MolecularDynamicsSimulation:
 
         velocities = velocities_directions * velocities_magnitude
         velocities -= np.mean(velocities, axis=0)  # Ensure zero net momentum
-        print(f"Mean absolute velocity: {np.mean(np.abs(velocities))} m/s")
+        print(f"Mean velocity: {np.mean(velocities)} m/s")
         print(f"Velocities initalised with a temperature of {self.initial_temp} K")
         # print(velocities)
         return velocities
@@ -131,31 +131,21 @@ class MolecularDynamicsSimulation:
             delta = self.pbc(self._particles[:, :] - pos_i)
             d_sq = np.sum((delta ** 2), axis=1).reshape(self.npart, 1)
             d_sq[d_sq > self.rcut ** 2] = np.inf
+            d_sq[d_sq <= self.sigma ** 2] = self.sigma ** 2
             d_sq[i] = np.inf
-            d_sq[d_sq < self.sigma ** 2] = self.sigma ** 2
             d6 = d_sq ** 3
             d12 = d6 * d6
             forces[i] += np.sum((self.sigma6 / d6 - 2 * self.sigma12 / d12)
                                 .reshape(self.npart, 1) * delta / np.sqrt(d_sq), axis=0)
-        return forces
-
-    @property
-    def temperature(self) -> float:
-        """
-
-        :return: the temperature of the system in Kelvin
-        """
-
-        return 2.0 * self.kineticEnergy / (self.ndim * self.kb * self.npart)  # K
-
+        return -24 * self.epsilon * forces
 
     @property
     def kineticEnergy(self) -> float:
         """
         Calculate the kinetic energy of the system in J
         """
-        # return 0.5 * self.mass * np.sum(np.linalg.norm(self._velocities, axis=1) ** 2)  # J
-        return 0.5 * np.sum(self.mass * np.sum(self._velocities ** 2, axis=1))  # J
+        return 0.5 * self.mass * np.sum(self._velocities ** 2)  # J
+        # return 0.5 * np.sum(self.mass * np.sum(self._velocities ** 2, axis=1))  # J
 
     @property
     def potentialEnergy(self) -> float:
@@ -170,6 +160,14 @@ class MolecularDynamicsSimulation:
             energy += 4 * self.epsilon * np.sum(self.sigma12 / d12 - self.sigma6 / d6) + self.tail_correction
         return energy
 
+    @property
+    def temperature(self) -> float:
+        """
+
+        :return: the temperature of the system in Kelvin
+        """
+
+        return 2.0 * self.kineticEnergy / (self.ndim * self.kb * self.npart)  # K
 
     @property
     def pressure(self) -> float:
@@ -232,18 +230,16 @@ class MolecularDynamicsSimulation:
         # Update positions
         self._particles += self._velocities * self.dt + 0.5 * (forces / self.mass) * (self.dt ** 2)
 
-        velocity_t2 = self._velocities + 0.5 * (forces / self.mass) * self.dt
+        # self._particles = self.pbc(self._particles)
 
         # Compute new forces
         new_forces = self.LJ_forces()
 
         # Update velocities
-        self._velocities += velocity_t2 + 0.5 * new_forces / self.mass * self.dt
+        self._velocities += 0.5 * (new_forces + forces) / self.mass * self.dt
 
         # Update forces
         self._forces = new_forces
-
-        self._particles = self.pbc(self._particles)
 
     def velocityVerletThermostat(self) -> None:
         """
@@ -317,7 +313,5 @@ if __name__ == "__main__":
     inital_temp = 150
     npart = 363
 
-    MD = MolecularDynamicsSimulation(Q=0)
-    MD.run()
-    # MD.runThermostat()
-
+    MD = MolecularDynamicsSimulation(Q=10**10)
+    MD.runThermostat()
