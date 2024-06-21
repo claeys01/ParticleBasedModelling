@@ -117,7 +117,7 @@ class MolecularDynamicsSimulation:
 
         velocities = velocities_directions * velocities_magnitude
         velocities -= np.mean(velocities, axis=0)  # Ensure zero net momentum
-        print(f"Mean velocity: {np.mean(velocities)} m/s")
+        print(f"Mean absolute velocity: {np.mean(np.abs(velocities))} m/s")
         print(f"Velocities initalised with a temperature of {self.initial_temp} K")
         # print(velocities)
         return velocities
@@ -131,20 +131,30 @@ class MolecularDynamicsSimulation:
             delta = self.pbc(self._particles[:, :] - pos_i)
             d_sq = np.sum((delta ** 2), axis=1).reshape(self.npart, 1)
             d_sq[d_sq > self.rcut ** 2] = np.inf
-            d_sq[d_sq <= self.sigma ** 2] = self.sigma ** 2
             d_sq[i] = np.inf
+            d_sq[d_sq < self.sigma ** 2] = self.sigma ** 2
             d6 = d_sq ** 3
             d12 = d6 * d6
             forces[i] += np.sum((self.sigma6 / d6 - 2 * self.sigma12 / d12)
                                 .reshape(self.npart, 1) * delta / np.sqrt(d_sq), axis=0)
-        return -24 * self.epsilon * forces
+        return forces
+
+    @property
+    def temperature(self) -> float:
+        """
+        :return: the temperature of the system in Kelvin
+        """
+        vmag = np.linalg.norm(self._velocities, axis=1)  # m/s
+        return self.mass * np.mean(vmag ** 2) / (self.ndim * self.kb)  # K
+        # return self.mass * np.mean(np.linalg.norm(self._velocities, axis=1) ** 2) / (self.ndim * self.kb)  # K
+
 
     @property
     def kineticEnergy(self) -> float:
         """
         Calculate the kinetic energy of the system in J
         """
-        return 0.5 * self.mass * np.sum(self._velocities ** 2)  # J
+        return 0.5 * self.mass * np.sum(np.linalg.norm(self._velocities,axis=1) ** 2)  # J
         # return 0.5 * np.sum(self.mass * np.sum(self._velocities ** 2, axis=1))  # J
 
     @property
@@ -280,12 +290,12 @@ class MolecularDynamicsSimulation:
             self.velocityVerlet()
             if t % 100 == 0:
                 print(
-                    f"""\r{t}| 
-                    Temperature: {self.temperature} Kelvin
-                    Kinetic energy: {self.kineticEnergy * 1e-3 / 4184 * self.NA} kCa/mol
-                    Step velocity range : [{(self._velocities).min() * 1e-5:.3e}, {(self._velocities).max() * 1e-5:.3e}] Å/fs
-                    Step force range: [{(self._forces).min() / 4184 * self.NA:.3e}, {(self._forces).max() / 4184 * self.NA:.3e}] kcal/mol/Å
-                            """, end='', flush=True)
+f"""
+\r{t}|  Temperature: {self.temperature:.6} Kelvin
+        Kinetic energy: {self.kineticEnergy / 4184 * self.NA:.4f} kCa/mol
+        Mean absolute velocity  [{np.mean(np.abs(self._velocities)) * 1e-5:.3e}] Å/fs
+        Mean absolute force: [{np.mean(np.abs(self._forces))/ 4184 * self.NA:.3e}] kcal/mol/Å
+        """, end='', flush=True)
                 self.write_frame(filename, t)
 
         print("Simulation completed")
@@ -297,12 +307,13 @@ class MolecularDynamicsSimulation:
             self.velocityVerletThermostat()
             if t % 100 == 0:
                 print(
-                    f"""\r{t}| 
-                    Temperature: {self.temperature:.4} Kelvin
-                    Kinetic energy: {self.kineticEnergy * 1e-3 / 4184 * self.NA:.4f} kCa/mol
-                    Step velocity range : [{(self._velocities).min() * 1e-5:.3e}, {(self._velocities).max() * 1e-5:.3e}] Å/fs
-                    Step force range: [{(self._forces).min() / 4184 * self.NA:.3e}, {(self._forces).max() / 4184 * self.NA:.3e}] kcal/mol/Å
-                            """, end='', flush=True)
+    f"""
+\r{t}|
+Temperature: {self.temperature:.6} Kelvin
+Kinetic energy: {self.kineticEnergy / 4184 * self.NA:.4f} kCa/mol
+Mean absolute velocity: [{np.mean(np.abs(self._velocities)) * 1e-5:.3e}] Å/fs
+Mean absolute force: [{np.mean(np.abs(self._forces))/ 4184 * self.NA:.3e}] kcal/mol/Å
+""", end='', flush=True)
                 self.write_frame(filename, t)
 
         print("Simulation completed")
@@ -312,5 +323,7 @@ if __name__ == "__main__":
     inital_temp = 150
     npart = 363
 
-    MD = MolecularDynamicsSimulation(Q=10**10)
-    MD.runThermostat()
+    MD = MolecularDynamicsSimulation(Q=0)
+    MD.run()
+    # MD.runThermostat()
+
