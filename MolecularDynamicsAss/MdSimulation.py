@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import constants as const
@@ -10,7 +11,7 @@ class MolecularDynamicsSimulation:
                  initial_temp: float = 150,
                  ndim: int = 3, rcut: float = 10, dt: int = 1, eta_kb: float = 148, t_end: int = 3000,
                  Q: float = 1e10) -> None:
-        self.sigma = 3.73  # [Å]
+        self.sigma = 3.73 * 1e-10  # [Å]
         self.sigma6 = self.sigma ** 6
         self.sigma12 = self.sigma6 ** 2
 
@@ -20,16 +21,16 @@ class MolecularDynamicsSimulation:
         self.epsilon = eta_kb * self.kb  # [J]
         self.M = molar_mass  # g/mol
         self.ndim = ndim
-        self.rcut = rcut  # [Å]
+        self.rcut = rcut * 1e-10 # [Å]
         self.rcut3 = self.rcut ** 3
         self.rcut9 = self.rcut ** 9
 
-        self.dt = dt  # timestep in fs
-        self.side_length = side_length  # [Å]
+        self.dt = dt * 1e-15 # timestep in s
+        self.side_length = side_length * 1e-10  # [Å]
         self.volume = self.side_length ** 3  # [Å^3]
         self.t_end = t_end
 
-        self.npart = MolecularDynamicsSimulation.get_num_molecules(rho, self.side_length, self.M)
+        self.npart = MolecularDynamicsSimulation.get_num_molecules(rho, self.side_length*1e10, self.M)
         self.rho_num = self.npart / self.volume  # Density of the system [particles/Å^3]
         self.tail_correction = (8 / 3) * np.pi * self.rho_num * self.epsilon * (
                 self.sigma12 / (3 * self.rcut9) - self.sigma6 / (3 * self.rcut3))  # Tail correction
@@ -97,7 +98,7 @@ class MolecularDynamicsSimulation:
         velocities_directions = velocities_directions / velocities_norms[:, np.newaxis]
 
         # determine magnitude of velocities
-        velocities_magnitude = np.sqrt(self.ndim * self.R * self.initial_temp / (self.M / 1000))  # Convert to Å/fs
+        velocities_magnitude = np.sqrt(self.ndim * self.kb * self.initial_temp / (self.mass))  # Convert to Å/fs
 
         velocities = velocities_directions * velocities_magnitude
 
@@ -109,7 +110,7 @@ class MolecularDynamicsSimulation:
 
         print(f"Mean velocity: {np.mean(np.abs(velocities))} m/s")
         print(f"Velocities initialized with a temperature of {self.initial_temp} K")
-        return velocities * 1e-5  # Convert to Å/fs
+        return velocities # velocities in m/s
 
     def pbc(self, delta: np.ndarray) -> np.ndarray:
         return (delta + self.side_length / 2) % self.side_length - self.side_length / 2
@@ -118,6 +119,8 @@ class MolecularDynamicsSimulation:
         forces = np.zeros((self.npart, self.ndim))
         for (i, pos_i) in enumerate(self._particles):
             delta = self.pbc(self._particles[:, :] - pos_i)
+            # delta = self._particles[:, :] - pos_i
+
             d_sq = np.sum((delta ** 2), axis=1).reshape(self.npart, 1)
             d_sq[d_sq > self.rcut ** 2] = np.inf
             d_sq[d_sq <= self.sigma ** 2] = self.sigma ** 2
@@ -126,24 +129,22 @@ class MolecularDynamicsSimulation:
             d13 = d_sq ** 6.5
             forces[i] += np.sum((self.sigma6 / d7 - 2 * self.sigma12 / d13)
                                 .reshape(self.npart, 1) * delta / np.sqrt(d_sq), axis=0)
-        return -24 * self.epsilon * forces * 1e-10  # Convert forces to J/Å
+        return -24 * self.epsilon * forces  # Force in J
 
     @property
     def kineticEnergy(self) -> float:
         """
         Calculate the kinetic energy of the system in J
         """
-        return 10 ** 4 * 0.5 * self.M * np.sum(np.linalg.norm(self._velocities, axis=1) ** 2)
-        # return 10**5* 0.5 * self.M * np.sum((np.linalg.norm(self._velocities,axis=1))** 2)
+        return 0.5 * self.mass * np.sum((np.linalg.norm(self._velocities, axis=1)) ** 2)
 
     @property
     def temperature(self) -> float:
         """
         :return: the temperature of the system in Kelvin
         """
-        vmag = np.linalg.norm(self._velocities, axis=1) * 10 ** 5  # m/s
-        return self.mass * np.mean(vmag ** 2) / (self.ndim * self.kb)  # kg m^2/s^2 / J/K = K
-        # return 2.0 * self.kineticEnergy / (self.ndim * self.kb * self.NA * self.npart)  # K
+        # return 0.5 * self.mass * np.mean(self._velocities ** 2) / (self.ndim * self.kb)  # kg m^2/s^2 / J/K = K
+        return 2.0 * self.kineticEnergy / (self.ndim * self.kb * self.npart)  # K
 
     @property
     def potentialEnergyPressure(self) -> float:
@@ -237,7 +238,7 @@ class MolecularDynamicsSimulation:
             file.write(
                 f"{step} {self.temperature:.6f} {pressure:.6f} {self.kineticEnergy / 4184:.6f} {potentialEnergy / 4184:.6f} {(self.kineticEnergy + potentialEnergy) / 4184:.6f}\n")
 
-    def run(self, filename, logname):
+    def run(self, filename=None, logname=None):
         print("Running simulation \n")
         for t in range(self.t_end):
             self.velocityVerlet()
@@ -245,12 +246,14 @@ class MolecularDynamicsSimulation:
                 print(
                     f"\rtimestep: {t} | Temperature: {self.temperature:.3f} Kelvin | KE: {self.kineticEnergy / 4.184:.4f} kcal/mol | Mean U: [{np.mean(np.abs(self._velocities)):.3e}] Å/fs | Mean f: [{np.mean(np.abs(self._forces)) * 10 ** 10 / 4184 * self.NA:.3e}] kcal/(mol Å)",
                     flush=True, end='')
-                self.log(logname, t)
-                self.write_frame(filename, t)
+                if logname:
+                    self.log(logname, t)
+                if filename:
+                    self.write_frame(filename, t)
         print("...")
         print("Simulation completed")
 
-    def runThermostat(self, filename: str, logname):
+    def runThermostat(self, filename: str| None = None, logname: str| None = None):
         print("Running thermostat simulation \n")
         for t in range(self.t_end):
             self.velocityVerletThermostat()
@@ -258,8 +261,10 @@ class MolecularDynamicsSimulation:
                 print(
                     f"\rtimestep: {t} | Temperature: {self.temperature:.3f} Kelvin | KE: {self.kineticEnergy / 4.184:.4f} kcal/mol | Mean U: [{np.mean(np.abs(self._velocities)):.3e}] Å/fs | Mean f: [{np.mean(np.abs(self._forces)) * 10 ** 10 / 4184 * self.NA:.3e}] kcal/(mol Å)",
                     flush=True, end='')
-                self.write_frame(filename, t)
-                self.log(logname, t)
+                if logname:
+                    self.log(logname, t)
+                if filename:
+                    self.write_frame(filename, t)
         print('...')
         print("Simulation completed")
 
@@ -268,16 +273,16 @@ if __name__ == "__main__":
     initial_temp = 150
     npart = 363
     rcut = 1000
-    t_end = 3000
+    t_end = 1500
+    dt = 5
     # print(initial_temp*const.Avogadro*npart)
 
     # MD_comp = MolecularDynamicsSimulation(Q=initial_temp * const.k * npart, t_end=t_end, rcut=rcut)
     # MD_comp.run('MolecularDynamicsAss/Outputs/pbc_standard_trajectory.lammps',
     #             'MolecularDynamicsAss/Outputs/pbc_standard_log.txt')
     #
-    # MD_comp_thermostat = MolecularDynamicsSimulation(Q=initial_temp * const.k * npart, t_end=t_end, rcut=rcut)
-    # MD_comp_thermostat.runThermostat('MolecularDynamicsAss/Outputs/pbc_standard_thermostat_trajectory.lammps',
-    #                                  'MolecularDynamicsAss/Outputs/pbc_standard_thermostat_log.txt')
+    MD_comp_thermostat = MolecularDynamicsSimulation(Q=initial_temp * const.k * npart, t_end=t_end, rcut=rcut, dt=dt)
+    MD_comp_thermostat.run()
 
 
     def tune_Q():
@@ -285,19 +290,27 @@ if __name__ == "__main__":
         for Q in Q_values:
             Q_str = f"{Q:.0e}"
             print(Q_str)
-            MD = MolecularDynamicsSimulation(Q=Q, t_end=t_end, rcut=rcut)
+            MD = MolecularDynamicsSimulation(Q=Q, t_end=t_end, rcut=rcut, dt=dt)
             MD.runThermostat('MolecularDynamicsAss/Outputs/' + Q_str + '_thermostat_trajectory.lammps',
                              'MolecularDynamicsAss/Outputs/' + Q_str + 'thermostat_log.txt')
             print(f"Q = {Q:.0e} completed")
 
     def tune_Q2():
-        Q_values = np.logspace(-15, -25, num=25, base=10)
+        start = time.time()
+        tune_durations = []
+        Q_values = np.logspace(-25, 25, num=200, base=10)
         for Q in Q_values:
+            start_tune = time.time()
             Q_str = f"{Q:.4e}"
             # print(Q_str)
-            MD = MolecularDynamicsSimulation(Q=Q, t_end=t_end, rcut=rcut)
-            MD.run('MolecularDynamicsAss/Outputs/tuningQ2/' + Q_str + '_pbc_trajectory.lammps',
-                   'MolecularDynamicsAss/Outputs/tuningQ2/' + Q_str + '_pbc_log.txt')
-            print(f"Q = {Q:.4e} completed")
-    tune_Q2()
+            MD = MolecularDynamicsSimulation(Q=Q, t_end=t_end, rcut=rcut, dt=dt)
+            MD.run('MolecularDynamicsAss/Outputs/tuningQ4/' + Q_str + '_pbc_trajectory.lammps',
+                   'MolecularDynamicsAss/Outputs/tuningQ4/' + Q_str + '_pbc_log.txt')
+            end_tune = time.time()
+            tune_durations.append(end_tune - start_tune)
+            print(f"Q = {Q:.4e} completed in {end_tune - start_tune:.2f} seconds")
+        tune_durations = np.array(tune_durations)
+        print(f"Total duration: {time.time() - start:.2f} seconds")
+        print(f"Average duration: {np.mean(tune_durations):.2f} seconds")
+    # tune_Q2()
 

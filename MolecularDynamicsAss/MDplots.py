@@ -24,7 +24,9 @@ def get_log(file: str) -> np.ndarray:
 
         return data
 
-data = get_log('MolecularDynamicsAss/Outputs/tuningQ/1e+04thermostat_log.txt')
+data = get_log('MolecularDynamicsAss/Outputs/pbc_standard_log.txt')
+plt.plot(data[0], data[1])
+plt.show()
 
 def plot_first_Qtune(directory):
     fig = plt.figure(figsize=(10, 5))
@@ -35,15 +37,21 @@ def plot_first_Qtune(directory):
         'cyan', 'magenta', 'yellow', 'teal', 'lime', 'navy', 'maroon', 'black'
     ]
     print(len(colors))
-    for file in os.listdir(directory):
+    i = 0
+    for file in sorted(os.listdir(directory)):
         if file.endswith(".txt"):
+            # print(int(file[8:10]))
+            # print(int(file[8:10]))
             label ='Q: 1e'+ str(int(file[3:5]))
+
+            label ='Q: 1e'+ str(int(file[8:10]))
             data = get_log(directory + file)
-            ax.plot(data[0], data[1], label=label, color=colors[int(file[3:5])-1])
+            ax.plot(data[0], data[1], label=label)
+            i += 1
     ax.legend()
     ax.set_xlabel('Step')
     ax.set_ylabel('Temperature')
-    ax.set_ylim(0, 500)
+    # ax.set_ylim(0, 500)
     plt.show()
 
 
