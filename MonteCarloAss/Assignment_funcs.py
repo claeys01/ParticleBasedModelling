@@ -591,7 +591,12 @@ def create_file_names(folder: str, delta: float):
     return formatted_name
 
 
+
+    molar_mass = 16.04
+
+
 if __name__ == '__main__':
+    MD_comparison()
     # number = 34.12345678
     # print(number)
     # string = f"{number:.5f}"
@@ -613,7 +618,7 @@ if __name__ == '__main__':
     # question31(14, 0.736, 358.4)
     # plot_energy_vs_cycle3('Ass31Outputs/2024-06-13_20-53-27/', 'question31', 12)
     # plot_temperature_vs_pressure('Ass31Outputs/2024-06-13_20-53-27/', 'question31', 12)
-    plot_pressure_vs_cycle('Ass32Outputs/2024-06-13_22-16-17/', 'question32', 12)
+    # plot_pressure_vs_cycle('Ass32Outputs/2024-06-13_22-16-17/', 'question32', 12)
     # question32(1.6, 50, 181.97595888345467 / 2)
 
     # plot_pressure_vs_cycle('Ass32Outputs/2024-06-11_17-09-27/', 'question32', 12)

@@ -3,6 +3,9 @@ import scipy.constants as const
 from typing import Tuple
 import time
 import math
+import os
+from datetime import datetime
+import csv
 
 
 class MonteCarloSimulation:
@@ -135,9 +138,42 @@ class MonteCarloSimulation:
 
 if __name__ == '__main__':
 
+    def create_file_names(folder: str, delta: float):
+        rounded = f"{delta:.5f}"  # Round to 7 decimal places
+        number = '_'.join(rounded.split('.'))  # Replace the "." with "_"
+        formatted_name = folder + number + ".csv"  # Pad with zeros if necessary and add ".csv"
+        return formatted_name
+    def MD_comparison(rho=358.4, T=300, rcut=15, side_length=150, delta=0.736, ncycles=100000):
+        print("exercise Comparison MD system")
+        start = time.time()
+        num_molecules = MonteCarloSimulation.get_num_molecules(rho, side_length, 16.04)
+        print(f"num_molecules: {num_molecules}")
+
+        directory = 'MonteCarloAss/Outputs/' + 'Comparison45414' + '/'
+        os.mkdir(directory)
+        mc_comp = MonteCarloSimulation(temp=T, side_length=side_length, rcut=rcut, delta=delta, ncycle=ncycles,
+                                        npart=num_molecules)
+        E_ave, P_ave, acceptance_ratio = mc_comp.run(start_conf=True)
+
+        filename = create_file_names(directory, delta)
+        fields = ['Delta', 'Energy', 'Pressure', 'Acceptance Ratio']
+        if os.path.exists(filename):
+            os.remove(filename)
+            print(f"trajectory_deleted")
+
+        with open(filename, mode='w', newline='') as csfile:
+            csv_writer = csv.writer(csfile, delimiter=',', quotechar='"')
+            csv_writer.writerow(fields)
+            for j in range(ncycles):
+                if E_ave[j] != 0 and P_ave[j] != 0:
+                    csv_writer.writerow([delta, E_ave[j], P_ave[j], acceptance_ratio])
+            end = time.time()
+
+        print("excersice 2.3 done in ", end - start, " seconds \n")
 
 
-    import Assignment_funcs
+    MD_comparison()
+
     """
     Question 2.1 modeling a liquid CH4 system and running the mc simulation 
     for multiple dela values to determine the aoptimal displacement value
@@ -147,7 +183,7 @@ if __name__ == '__main__':
     T_21 = 150
     side_length_21 = 30
     rcut_21 = 14
-    Assignment_funcs.question21(T_21, side_length_21, rcut_21)
+    # Assignment_funcs.question21(T_21, side_length_21, rcut_21)
 
 
     """
@@ -161,7 +197,7 @@ if __name__ == '__main__':
     side_length_22 = 75
     rcut_22 = 30
 
-    Assignment_funcs.question22(T_22, side_length_22, rcut_22)
+    # Assignment_funcs.question22(T_22, side_length_22, rcut_22)
 
     """
     Question 2.3 modeling a liquid CH4 using the optimal delta value from question 2.1
@@ -175,7 +211,7 @@ if __name__ == '__main__':
     rcut_23 = 14
     delta_23 = 0.736
 
-    Assignment_funcs.question23(T_23, side_length_23, rcut_23, delta_23, ncycles=1000000)
+    # Assignment_funcs.question23(T_23, side_length_23, rcut_23, delta_23, ncycles=1000000)
 
     """
     Question 3.1 modeling a liquid CH4 system and running the mc simulation for different temperatures
@@ -186,7 +222,7 @@ if __name__ == '__main__':
     delta_31 = 0.736
     rho31 = 358.4
 
-    Assignment_funcs.question31(rcut_31, delta_31, rho31)
+    # Assignment_funcs.question31(rcut_31, delta_31, rho31)
 
     """
     Question 3.2: modeling a gas CH4 system and running the mc simulation for different temperatures
@@ -195,7 +231,7 @@ if __name__ == '__main__':
     """
     rcut_32 = 50
     rho32 = 1.6
-    Assignment_funcs.question32(rcut_32, rho32)
+    # Assignment_funcs.question32(rcut_32, rho32)
 
 
 
